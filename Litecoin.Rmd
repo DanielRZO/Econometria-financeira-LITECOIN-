@@ -1,0 +1,244 @@
+---
+title: "Criptomoeda"
+author: "Daniel Ryba Zanardini de Oliveira"
+output:
+  pdf_document: default
+     
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# inserindo os dados:
+library(readxl)
+litecoin <- read_excel("C:\\Users\\Daniel\\Documents\\MESTRADO\\II SEMESTRE\\FINANÇAS\\EXERCÍCIOS\\TRABALHO 2\\litecoin.xlsx")
+```
+
+## Visualização das séries
+
+```{r message=FALSE, warning=FALSE}
+# transformando em uma série de tempo:
+library(timeSeries)
+L <- timeSeries(litecoin)
+L <- rev(L)
+tail (L)
+```
+```{r}
+# para avaliar o logretorno, trabalharemos com o preço de fechamento:
+preço <- as.numeric(L[,5])
+
+# calculando o log retorno:
+L.ret <- returns(preço)
+head(L.ret)
+```
+```{r}
+# visualização gráfica:
+par(mfrow=c(1,2))
+plot(preço, main="Litecoin", type="l", ylab="preço", xlab="data")
+plot(L.ret, main="Litecoin_Log", type="l", ylab="logretorno", xlab="data")
+```
+
+```{r warning=FALSE}
+# histogramas:
+par(mfrow=c(1,2))
+hist(preço, breaks = "FD", col = "red", n=60, 
+     main = "Histograma Litecoin", xlab = "Preços")
+
+hist(L.ret, breaks = "FD", col = "blue", n=60, 
+     main = "Histograma Litecoin", xlab = "LogReturns")
+```
+
+```{r}
+#qqplot
+qqnorm(L.ret); qqline(L.ret, col="red")
+```
+## Estatísticas das séries
+
+```{r message=FALSE, warning=FALSE}
+# tabela com as principais estaísticas das séries de preços e retornos: média, min, max, desvio, variância, assimetria e curtose.
+
+library(tseries)
+library(fBasics)
+
+options(digits=4)
+
+#série de preços:
+StatsPreço=as.matrix(basicStats(preço), 2,1)
+
+#série de log retornos:
+L.ret.NA <- removeNA(L.ret) #removendo o NA 
+StatsRet=as.matrix(basicStats(L.ret.NA), 2,1)
+
+STATS <- cbind(StatsRet, StatsPreço)
+STATS
+```
+```{r}
+# estacionarieade série de preços
+adf.test(preço)
+kpss.test(preço)
+```
+
+```{r}
+# estacionarieade série de retorno
+adf.test(L.ret.NA)                               
+kpss.test(L.ret.NA, null="Trend")
+```
+```{r}
+# teste de normalidade série de preços
+jarque.bera.test(preço)
+```
+```{r}
+# teste de normalidade série de retorno
+jarque.bera.test(L.ret.NA)
+```
+
+```{r}
+# testes Box Pierce Ljung Box na série de retornos 
+Box.test(L.ret.NA, lag = 5)
+Box.test(L.ret.NA, lag = 10)
+Box.test(L.ret.NA, lag = 30)
+```
+```{r}
+# testes Box Pierce Ljung Box na série do quadrado dos retornos
+Box.test(L.ret.NA^2, lag = 5)
+Box.test(L.ret.NA^2, lag = 10)
+Box.test(L.ret.NA^2, lag = 30)
+```
+
+```{r message=FALSE, warning=FALSE}
+# teste ARCH-LM na série de retorno
+library(FinTS)
+ArchTest(L.ret.NA)
+```
+
+```{r}
+# ACF
+par(mfrow=c(1,2))
+acf(L.ret.NA)
+acf(L.ret.NA^2)
+```
+## Ajustando o modelor ARIMA
+
+```{r message=FALSE, warning=FALSE}
+# ajustando o melhor modelo "familia GARCH"
+library(forecast)
+library(rugarch)
+library(fGarch)
+library(rmgarch)
+library(quantmod)
+
+
+# primeiro fazeos um FIT para ter uma idéia
+fit <- auto.arima(L.ret.NA, seasonal=FALSE, stepwise=FALSE, approximation=FALSE)   
+summary(fit)
+```
+## Ajustando o modelo GARCH
+
+```{r warning=FALSE}
+# modelos GARCH
+garch_model <-  ugarchspec(mean.model = list(armaOrder=c(2,3)), 
+                           variance.model = list(garchOrder=c(1,1), model = "sGARCH"),
+                           distribution.model = "sstd")
+
+garch_model_1 <-  ugarchspec(mean.model = list(armaOrder=c(1,1)), 
+                           variance.model = list(garchOrder=c(1,1), model = "sGARCH"),
+                           distribution.model = "std")
+
+```
+
+```{r}
+garch <- ugarchfit(data = L.ret.NA, spec = garch_model)
+print(garch)
+```
+
+```{r}
+garch_1 <- ugarchfit(data = L.ret.NA, spec = garch_model_1)
+print(garch_1)
+```
+
+## Exponencial GARCH
+
+```{r}
+# modelos EGARCH
+egarch_model <-  ugarchspec(mean.model = list(armaOrder=c(2,3), include.mean=FALSE), 
+                           variance.model = list(garchOrder=c(1,1), model = "eGARCH"),
+                           distribution.model = "sstd")
+
+egarch_model_1 <-  ugarchspec(mean.model = list(armaOrder=c(1,1), include.mean=FALSE), 
+                           variance.model = list(garchOrder=c(1,1), model = "eGARCH"),
+                           distribution.model = "std")
+```
+
+```{r}
+egarch <- ugarchfit(data = L.ret.NA, spec = egarch_model)
+print(egarch)
+```
+
+```{r}
+egarch_1 <- ugarchfit(data = L.ret.NA, spec = egarch_model_1)
+print(egarch_1)
+```
+
+## APARCH
+
+```{r}
+# modelos APARCH
+aparch_model <-  ugarchspec(mean.model = list(armaOrder=c(2,3), include.mean=FALSE), 
+                           variance.model = list(garchOrder=c(1,1), model = "apARCH"),
+                           distribution.model = "sstd")
+
+aparch_model_1 <-  ugarchspec(mean.model = list(armaOrder=c(1,1), include.mean=FALSE), 
+                           variance.model = list(garchOrder=c(1,1), model = "apARCH"),
+                           distribution.model = "std")
+```
+
+
+```{r}
+aparch <- ugarchfit(data = L.ret.NA, spec = aparch_model)
+print(aparch)
+```
+
+```{r}
+aparch_1 <- ugarchfit(data = L.ret.NA, spec = aparch_model_1)
+print(aparch_1)
+```
+
+## Melhor modelo pelo critério AKAIKE ARMA (2,3) APARCH (1,1)
+
+## Avaliando o modelo
+
+```{r}
+FR=residuals(aparch, standardize=TRUE)
+
+# ACF
+par(mfrow=c(1,2))
+acf(FR)
+acf(FR^2)
+```
+```{r}
+# estacionáridade dos resíduos
+adf.test(FR)                           
+kpss.test(FR, null="Trend")
+
+```
+
+```{r}
+# normalidade dos resíduos
+jarque.bera.test(FR)
+
+```
+
+```{r}
+#testes Box Pierce Ljung Box nos resíduos 
+Box.test(FR, lag = 5)
+Box.test(FR, lag = 10)
+Box.test(FR, lag = 50)
+```
+
+```{r}
+# qq plot dos resíduos
+qqnorm(FR); qqline(FR, col="red")
+```
+
