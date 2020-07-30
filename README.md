@@ -4,5 +4,7 @@ Análise descritiva e modelagem da criptomoeda Litecoin. Utilização de dados d
 Para a análise descritiva e modelagem, foi utilizado o software estatístico RStudio.
 
 Objetivo:
-- Fazer análise financeira e estatística descritiva da série temporal.
-- Avaliar modelos (família GARCH) que melhor se ajustem à série.
+* Fazer análise financeira e estatística descritiva da série temporal.
+* Avaliar modelos (família GARCH) que melhor se ajustem à série.
+
+RStudio 
